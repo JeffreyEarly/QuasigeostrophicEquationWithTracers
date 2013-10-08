@@ -15,20 +15,21 @@ end
 %
 x = ncread(file, 'x');
 y = ncread(file, 'y');
-% drifterID = ncread(file, 'drifterID');
 t = ncread(file, 'time');
 
-timeScale = 12;
-distanceScale = 47;
+timeScale = ncreadatt(file, '/', 'time_scale');
+distanceScale = ncreadatt(file, '/', 'length_scale');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % 	The stride indicates how many floats we will skip
 %
-stride = 4;
-size = 2;
+stride = 2;
+floatSize = 4;
 
-xposInitial = ncread(file, 'x-position', [ceil(stride/2) ceil(stride/2) 1], [length(y)/stride length(x)/stride 1], [stride stride 1]);
+% Read in the initial position of the floats.
+% We will use this information to maintain a constant color on each float.
+xposInitial = double(ncread(file, 'x-position', [ceil(stride/2) ceil(stride/2) 1], [length(y)/stride length(x)/stride 1], [stride stride 1]));
 xposInitial = reshape(xposInitial, length(y)*length(x)/(stride*stride), 1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -39,49 +40,47 @@ figure('Position', [50 50 1920 1080])
 set(gcf,'PaperPositionMode','auto')
 set(gcf, 'Color', 'w');
 
-for iTime=1:length(t)
-% for iTime=20:20
-% 	tracer = double(ncread(file, 'x-tracer', [1 1 iTime], [length(y) length(x) 1], [1 1 1]));
+%for iTime=1:length(t)
+for iTime=20:20
+
+	% read in the position of the floats for the given time	
+	xpos = double(ncread(file, 'x-position', [ceil(stride/2) ceil(stride/2) iTime], [length(y)/stride length(x)/stride 1], [stride stride 1]));
+	ypos = double(ncread(file, 'y-position', [ceil(stride/2) ceil(stride/2) iTime], [length(y)/stride length(x)/stride 1], [stride stride 1]));
 	
-	xpos = ncread(file, 'x-position', [ceil(stride/2) ceil(stride/2) iTime], [length(y)/stride length(x)/stride 1], [stride stride 1]);
-	ypos = ncread(file, 'y-position', [ceil(stride/2) ceil(stride/2) iTime], [length(y)/stride length(x)/stride 1], [stride stride 1]);
+	% make everything a column vector
 	xpos = reshape(xpos, length(y)*length(x)/(stride*stride), 1);
 	ypos = reshape(ypos, length(y)*length(x)/(stride*stride), 1);
-% 	
-% 	[X,Y]=meshgrid(x,y);
-% 	tracerInterp = interp2( X, Y, tracer, xpos, ypos);
-
-% 	xpos = ncread(file, 'x-position', [1 1 iTime], [length(y) length(x) 1]);
-% 	ypos = ncread(file, 'y-position', [1 1 iTime], [length(y) length(x) 1]);
-% 	xpos = reshape(xpos, length(y)*length(x), 1);
-% 	ypos = reshape(ypos, length(y)*length(x), 1);
-
-% 	xpos = ncread(file, 'x-position', [1 iTime], [length(drifterID) 1]);
-% 	ypos = ncread(file, 'y-position', [1 iTime], [length(drifterID) 1]);
 	
-% 	[X,Y]=meshgrid(x,y);
-% 	tracerInterp = interp2( X, Y, tracer, xpos, ypos);
+	% default color map is only 128 shades---we need more!
+	colormap(jet(1024))	
 	
+	% now plot the floats, colored by initial position
+	% Scatter works, but is substantially slower than using mesh.
+	% scatter(xpos, ypos, floatSize*floatSize, xposInitial, 'filled')	
+	mesh([xpos';xpos'],[ypos';ypos'],[xposInitial';xposInitial'],'mesh','column','marker','.','MarkerSize',floatSize*floatSize), view(2)
+	grid off
 	
-	scatter(xpos, ypos, size*size, xposInitial, 'filled')	
+	% make the axes look better
 	set( gca, 'TickDir', 'out');
-	set(gca, 'Linewidth', 1.0);
+	set( gca, 'Linewidth', 1.0);
 	axis equal tight
 	
+	% get rid of the xticks because we're going to put a colorbar below with the same info.
 	set( gca, 'xtick', [])
 	
 	xlim([min(x) max(x)])
 	ylim([min(y) max(y)])
 	
-	title( sprintf('Floats advected by a Quasigeostrophic eddy, colored by initial position, day %d', round(t(iTime)*12)), 'fontsize', 16 );
+	% label everything
+	title( sprintf('Floats advected by a Quasigeostrophic eddy, colored by initial position, day %d', round(t(iTime)*timeScale)), 'fontsize', 28, 'FontName', 'Helvetica' );
+	ylabel( 'distance (Rossby radius)', 'FontSize', 24.0, 'FontName', 'Helvetica');
 	
+	% add a color bar
 	cb = colorbar( 'location', 'SouthOutside' );
-	set(get(cb,'xlabel'),'String', 'Distance (Rossby radius)', 'FontSize', 12.0);
+	set(get(cb,'xlabel'),'String', 'distance (Rossby radius)', 'FontSize', 24.0, 'FontName', 'Helvetica');
 	set( gca, 'clim', [min(x) max(x)] );
 	
-% 	set(gca,'LooseInset',get(gca,'TightInset'))
-	
+	% write everything out	
 	output = sprintf('%s/Day_%03d', FramesFolder,iTime-1);
-	print('-depsc', output)
-% 	print('-r144', '-djpeg', output );
+	print('-depsc2', output)
 end

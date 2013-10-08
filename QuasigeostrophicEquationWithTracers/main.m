@@ -34,7 +34,7 @@ int main (int argc, const char * argv[])
 		// Variables are always tied to a particular equation---so we create an equation object first.
 		GLEquation *equation = [[GLEquation alloc] init];
 		
-		NSArray *spatialDimensions = [NSArray arrayWithObjects: xDim, yDim, nil];
+		NSArray *spatialDimensions = @[xDim, yDim];
 		GLVariable *x = [GLVariable variableOfRealTypeFromDimension: xDim withDimensions: spatialDimensions forEquation: equation];
 		GLVariable *y = [GLVariable variableOfRealTypeFromDimension: yDim withDimensions: spatialDimensions forEquation: equation];
 		
@@ -106,7 +106,8 @@ int main (int argc, const char * argv[])
 		/*		Create a NetCDF file and mutable variables in order to record some of the time steps.	*/
 		/************************************************************************************************/
 		
-		GLNetCDFFile *netcdfFile = [[GLNetCDFFile alloc] initWithURL: [NSURL URLWithString: @"/Users/jearly/Desktop/QuasigeostrophyTracers.nc"] forEquation: equation overwriteExisting: YES];
+		NSString *path = [[NSSearchPathForDirectoriesInDomains(NSDesktopDirectory, NSUserDomainMask, YES) objectAtIndex:0] stringByAppendingPathComponent:@"QuasigeostrophyTracers.nc"];
+		GLNetCDFFile *netcdfFile = [[GLNetCDFFile alloc] initWithURL: [NSURL URLWithString: path] forEquation: equation overwriteExisting: YES];
 		[netcdfFile setGlobalAttribute: @(N_QG) forKey: @"height_scale"];
 		[netcdfFile setGlobalAttribute: @(L_QG) forKey: @"length_scale"];
 		[netcdfFile setGlobalAttribute: @(T_QG) forKey: @"time_scale"];
@@ -156,7 +157,7 @@ int main (int argc, const char * argv[])
 			
 			NSArray *uv = @[[[[eta y] spatialDomain] negate], [[eta x] spatialDomain] ];
 			NSArray *xy = @[yNew[2], yNew[3]];
-			GLInterpolationOperation *interp = [[GLInterpolationOperation alloc] initWithFirstOperand: uv secondOperand: xy];
+			GLSimpleInterpolationOperation *interp = [[GLSimpleInterpolationOperation alloc] initWithFirstOperand: uv secondOperand: xy];
 			
 			NSArray *f = @[fSSH, fTracer, interp.result[0], interp.result[1]];
 			return f;
@@ -180,7 +181,7 @@ int main (int argc, const char * argv[])
 				
 				NSLog(@"Logging day: %f, step size: %f.", (integrator.currentTime*T_QG), integrator.lastStepSize*T_QG);
 				// We're using spectral code, so it's possible (and is in fact the case) that the variable is not in the spatial domain.
-				[tDim addPoint: [NSNumber numberWithDouble: time]];
+				[tDim addPoint: @(time)];
 				GLVariable *eta = [[ssh diff: @"inverseLaplacianMinusOne"] spatialDomain];
 				[sshHistory concatenateWithLowerDimensionalVariable: eta alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
 				[tracerHistory concatenateWithLowerDimensionalVariable: [tracer spatialDomain] alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];

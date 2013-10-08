@@ -33,6 +33,8 @@
 		81CCB0BC18046E870064471F /* QuasigeostrophicEquationWithTracers-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "QuasigeostrophicEquationWithTracers-Prefix.pch"; sourceTree = "<group>"; };
 		81CCB0BD18046E870064471F /* QuasigeostrophicEquationWithTracers.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = QuasigeostrophicEquationWithTracers.1; sourceTree = "<group>"; };
 		81CCB0C418046F100064471F /* GLNumericalModelingKit.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = GLNumericalModelingKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		81CCB0C71804809E0064471F /* MakeTracerMovieInMatlab.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MakeTracerMovieInMatlab.m; sourceTree = "<group>"; };
+		81CCB0C81804809E0064471F /* ShowInMatlab.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ShowInMatlab.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,6 +54,7 @@
 			isa = PBXGroup;
 			children = (
 				81CCB0B818046E870064471F /* QuasigeostrophicEquationWithTracers */,
+				81CCB0C61804808A0064471F /* Matlab */,
 				81CCB0B518046E870064471F /* Frameworks */,
 				81CCB0B418046E870064471F /* Products */,
 			);
@@ -90,6 +93,15 @@
 				81CCB0BC18046E870064471F /* QuasigeostrophicEquationWithTracers-Prefix.pch */,
 			);
 			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		81CCB0C61804808A0064471F /* Matlab */ = {
+			isa = PBXGroup;
+			children = (
+				81CCB0C71804809E0064471F /* MakeTracerMovieInMatlab.m */,
+				81CCB0C81804809E0064471F /* ShowInMatlab.m */,
+			);
+			name = Matlab;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
