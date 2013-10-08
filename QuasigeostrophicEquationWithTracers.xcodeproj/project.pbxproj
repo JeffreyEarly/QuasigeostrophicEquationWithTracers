@@ -10,6 +10,7 @@
 		81CCB0B718046E870064471F /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 81CCB0B618046E870064471F /* Foundation.framework */; };
 		81CCB0BA18046E870064471F /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 81CCB0B918046E870064471F /* main.m */; };
 		81CCB0BE18046E870064471F /* QuasigeostrophicEquationWithTracers.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 81CCB0BD18046E870064471F /* QuasigeostrophicEquationWithTracers.1 */; };
+		81CCB0C518046F100064471F /* GLNumericalModelingKit.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 81CCB0C418046F100064471F /* GLNumericalModelingKit.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -31,6 +32,7 @@
 		81CCB0B918046E870064471F /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		81CCB0BC18046E870064471F /* QuasigeostrophicEquationWithTracers-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "QuasigeostrophicEquationWithTracers-Prefix.pch"; sourceTree = "<group>"; };
 		81CCB0BD18046E870064471F /* QuasigeostrophicEquationWithTracers.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = QuasigeostrophicEquationWithTracers.1; sourceTree = "<group>"; };
+		81CCB0C418046F100064471F /* GLNumericalModelingKit.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = GLNumericalModelingKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -38,6 +40,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				81CCB0C518046F100064471F /* GLNumericalModelingKit.dylib in Frameworks */,
 				81CCB0B718046E870064471F /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -65,6 +68,7 @@
 		81CCB0B518046E870064471F /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				81CCB0C418046F100064471F /* GLNumericalModelingKit.dylib */,
 				81CCB0B618046E870064471F /* Foundation.framework */,
 			);
 			name = Frameworks;
@@ -219,6 +223,15 @@
 			buildSettings = {
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "QuasigeostrophicEquationWithTracers/QuasigeostrophicEquationWithTracers-Prefix.pch";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					"$(BUILT_PRODUCTS_DIR)/usr/local/include",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(USER_LIBRARY_DIR)/Developer/Xcode/DerivedData/QuasigeostrophicEquationWithTracers-glwcokwmbrywbigildpxfwgsqoqz/Build/Products/Debug",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -228,6 +241,15 @@
 			buildSettings = {
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "QuasigeostrophicEquationWithTracers/QuasigeostrophicEquationWithTracers-Prefix.pch";
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					"$(BUILT_PRODUCTS_DIR)/usr/local/include",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(USER_LIBRARY_DIR)/Developer/Xcode/DerivedData/QuasigeostrophicEquationWithTracers-glwcokwmbrywbigildpxfwgsqoqz/Build/Products/Debug",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -251,6 +273,7 @@
 				81CCB0C318046E870064471F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
