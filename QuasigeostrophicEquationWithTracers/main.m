@@ -15,21 +15,21 @@ int main (int argc, const char * argv[])
 {
 	
 	@autoreleasepool {
-	    
 		// Reasonable parameters to nondimensionalize by.
 		GLFloat N_QG = 1.3; // cm
 		GLFloat T_QG = 12; // days
 		GLFloat L_QG = 47; // km
 		
-		// 256x128 at takes 11 second with optimized code.
-		GLDimension *xDim = [[GLDimension alloc] initPeriodicDimension: YES nPoints: 512 domainMin: -1500/L_QG length: 2000/L_QG];
-		xDim.name = @"x";
-		GLDimension *yDim = [[GLDimension alloc] initPeriodicDimension: YES nPoints: 256 domainMin: -500/L_QG length: 1000/L_QG];
-		yDim.name = @"y";
-		GLMutableDimension *tDim = [[GLMutableDimension alloc] initWithPoints: [NSArray arrayWithObject: [NSNumber numberWithDouble: 0.0]]];
-		tDim.name = @"time";
+		/************************************************************************************************/
+		/*		Define the problem dimensions															*/
+		/************************************************************************************************/
 		
-		NSLog(@"Spatial resolution: %f km", xDim.sampleInterval*L_QG);
+		GLDimension *xDim = [[GLDimension alloc] initDimensionWithGrid: kGLPeriodicGrid nPoints:512 domainMin:-1500/L_QG length:2000/L_QG];
+		xDim.name = @"x";
+		GLDimension *yDim = [[GLDimension alloc] initDimensionWithGrid: kGLPeriodicGrid nPoints:256 domainMin:-500/L_QG length:1000/L_QG];
+		yDim.name = @"y";
+		GLMutableDimension *tDim = [[GLMutableDimension alloc] initWithPoints: @[@(0.0)]];
+		tDim.name = @"time";
 		
 		// Variables are always tied to a particular equation---so we create an equation object first.
 		GLEquation *equation = [[GLEquation alloc] init];
@@ -39,34 +39,29 @@ int main (int argc, const char * argv[])
 		GLVariable *y = [GLVariable variableOfRealTypeFromDimension: yDim withDimensions: spatialDimensions forEquation: equation];
 		
 		/************************************************************************************************/
-		/*		Create and cache the differential operators that we will be using	                 	*/
+		/*		Create and cache the differential operators we will need								*/
 		/************************************************************************************************/
 		
-		// At the moment we know that this is the spectral operators, although in the future we'll have to set this up explicitly.
-		GLSpectralDifferentialOperatorPool *diffOperators = [equation defaultDifferentialOperatorPoolForVariable: x];
+		NSArray *spectralDimensions = [x dimensionsTransformedToBasis: x.differentiationBasis];
 		
-		// Create the operator xx+yy-1---this is how you compute y from eta
-		GLSpectralDifferentialOperator *laplacianMinusOne = [[diffOperators harmonicOperator] scalarAdd: -1.0];
-		[diffOperators setDifferentialOperator: laplacianMinusOne forName: @"laplacianMinusOne"];
+		GLLinearTransform *laplacian = [GLLinearTransform harmonicOperatorFromDimensions: spectralDimensions forEquation: equation];
+		GLLinearTransform *laplacianMinusOne = [laplacian plus: @(-1.0)];
+		GLLinearTransform *inverseLaplacianMinusOne = [laplacianMinusOne inverse];
 		
-		// Create the operator 1/(xx+yy-1)---this is how you compute eta from y.
-		[diffOperators setDifferentialOperator: [laplacianMinusOne scalarDivide: 1.0] forName: @"inverseLaplacianMinusOne"];
+		GLLinearTransform *diff_xxx = [GLLinearTransform differentialOperatorWithDerivatives:@[@(3),@(0)] fromDimensions:spectralDimensions forEquation:equation];
+		GLLinearTransform *diff_xyy = [GLLinearTransform differentialOperatorWithDerivatives:@[@(1),@(2)] fromDimensions:spectralDimensions forEquation:equation];
+		GLLinearTransform *diff_xxy = [GLLinearTransform differentialOperatorWithDerivatives:@[@(2),@(1)] fromDimensions:spectralDimensions forEquation:equation];
+		GLLinearTransform *diff_yyy = [GLLinearTransform differentialOperatorWithDerivatives:@[@(0),@(3)] fromDimensions:spectralDimensions forEquation:equation];
 		
-		// This builds the differentiation matrix diff_{xxx} + diff_{xyy}
-		[diffOperators setDifferentialOperator: [[diffOperators xxx] plus: [diffOperators xyy]] forName: @"diffJacobianX"];
-		
-		// This builds the differentiation matrix diff_{xxy} + diff_{yyy}
-		[diffOperators setDifferentialOperator: [[diffOperators xxy] plus: [diffOperators yyy]] forName: @"diffJacobianY"];
-		
-		GLSpectralDifferentialOperator *svv = [diffOperators spectralVanishingViscosityFilter];
+		GLLinearTransform *diffJacobianX = [diff_xxx plus: diff_xyy];
+		GLLinearTransform *diffJacobianY = [diff_xxy plus: diff_yyy];
 		
 		GLFloat k = 0.05*xDim.sampleInterval;
-		//GLSpectralDifferentialOperator *diffLin = [[[[diffOperators harmonicOperatorOfOrder: 2] scalarMultiply: k] multiply: svv] minus: [diffOperators x]];
-		GLSpectralDifferentialOperator *diffLin = [[[diffOperators harmonicOperatorOfOrder: 2] scalarMultiply: k] minus: [diffOperators x]];
-		[diffOperators setDifferentialOperator: diffLin forName: @"diffLin"];
+		GLLinearTransform *biharmonic = [GLLinearTransform harmonicOperatorOfOrder: 2 fromDimensions: spectralDimensions forEquation: equation];
+		GLLinearTransform *svv = [GLLinearTransform spectralVanishingViscosityFilterWithDimensions: spectralDimensions scaledForAntialiasing: YES forEquation: equation];
+		GLLinearTransform *diffLin = [[biharmonic times: @(k)] times: svv];
 		
-		GLSpectralDifferentialOperator *harmonicDamp = [[[diffOperators harmonicOperatorOfOrder: 1] scalarMultiply: k] multiply: svv];
-		[diffOperators setDifferentialOperator: harmonicDamp forName: @"damp"];
+		GLLinearTransform *harmonicDamp = [[laplacian times: @(k)] times: svv];
 		
 		/************************************************************************************************/
 		/*		Create the initial conditions for the ssh, tracer, and floats							*/
@@ -77,30 +72,15 @@ int main (int argc, const char * argv[])
 		GLFloat length = 80/L_QG;
 		
 		GLVariable *r2 = [[x times: x] plus: [y times: y]];
-		GLVariable *gaussian = [[[r2 scalarMultiply: -1.0/(length*length)] exponentiate] scalarMultiply: amplitude];
+		GLVariable *gaussian = [[[r2 times: @(-1.0/(length*length))] exponentiate] times: @(amplitude)];
 		
 		// The tracer varies linearly from east-to-west, but we create a smooth edge at the boundary.
-		GLVariable *distanceFromEW = [[[[[x scalarAdd: -xDim.domainMin-xDim.domainLength/2.0] abs] negate] scalarAdd: xDim.domainLength/2.0] scalarMultiply: 1/(250/L_QG)];
-		GLVariable *tracer = [[[[[[distanceFromEW times: distanceFromEW] scalarMultiply: -2.0*M_PI] exponentiate] negate] scalarAdd: 1] times: x];
+		GLVariable *distanceFromEW = [[[[[x plus: @(-xDim.domainMin-xDim.domainLength/2.0)] abs] negate] plus: @(xDim.domainLength/2.0)] times: @(1/(250/L_QG))];
+		GLVariable *tracer = [[[[[[distanceFromEW times: distanceFromEW] times: @(-2.0*M_PI)] exponentiate] negate] plus: @(1)] times: x];
 		
 		// Let's also plop a float at each grid point.
 		GLVariable *xPosition = [GLVariable variableFromVariable: x];
 		GLVariable *yPosition = [GLVariable variableFromVariable: y];
-        
-		//        GLDimension *drifterDim = [[GLDimension alloc] initPeriodicDimension: NO nPoints:xDim.nPoints domainMin:1 sampleInterval:1];
-		//		drifterDim.name = @"drifterID";
-		//		GLVariable *xPosition = [GLVariable variableOfRealTypeWithDimensions: [NSArray arrayWithObject: drifterDim] forEquation:equation];
-		//		GLVariable *yPosition = [GLVariable variableOfRealTypeWithDimensions: [NSArray arrayWithObject: drifterDim] forEquation:equation];
-		//        for ( NSUInteger i=0; i<drifterDim.nPoints; i++){
-		//            xPosition.pointerValue[i] = [xDim valueAtIndex: i];
-		//            yPosition.pointerValue[i] = 0;
-		//        }
-		
-		//        xPosition.pointerValue[0] = [xDim valueAtIndex: 364];
-		//        yPosition.pointerValue[1] = 0;
-		//
-		//        xPosition.pointerValue[0] = [xDim valueAtIndex: 424];
-		//        yPosition.pointerValue[1] = 0;
         
 		/************************************************************************************************/
 		/*		Create a NetCDF file and mutable variables in order to record some of the time steps.	*/
@@ -142,18 +122,18 @@ int main (int argc, const char * argv[])
 		/*		Create the integration object.															*/
 		/************************************************************************************************/
 		
-		GLVariable *ssh = [gaussian diff: @"laplacianMinusOne"];
+		GLVariable *ssh = [gaussian differentiateWithOperator: laplacianMinusOne];
 		tracer = [tracer frequencyDomain];
 		NSArray *yin = @[ssh, tracer, xPosition, yPosition];
 		
-		GLVectorIntegrationOperation *integrator = [GLVectorIntegrationOperation rungeKutta4AdvanceY: yin stepSize: timeStep fFromY:^(NSArray *yNew) {
-			//		GLAdaptiveVectorIntegrationOperation *integrator = [GLAdaptiveVectorIntegrationOperation rungeKutta45AdvanceY: yin stepSize: timeStep fFromY:^(NSArray *yNew) {
-			GLVariable *eta = [yNew[0] diff: @"inverseLaplacianMinusOne"];
+//		GLRungeKuttaOperation *integrator = [GLAdaptiveRungeKuttaOperation rungeKutta23AdvanceY: yin stepSize: timeStep fFromTY:^(GLScalar *time, NSArray *yNew) {
+		GLRungeKuttaOperation *integrator = [GLRungeKuttaOperation rungeKutta4AdvanceY: yin stepSize: timeStep fFromTY:^(GLScalar *time, NSArray *yNew) {
+			GLVariable *eta = [inverseLaplacianMinusOne transform: yNew[0]];
 			
-			GLVariable *fSSH = [[eta diff:@"diffLin"] plus: [[[[eta y] times: [eta diff: @"diffJacobianX"]] minus: [[eta x] times: [eta diff: @"diffJacobianY"]]] frequencyDomain]];
+			GLVariable *fSSH = [[eta differentiateWithOperator: diffLin] plus: [[[[eta y] times: [eta differentiateWithOperator: diffJacobianX]] minus: [[eta x] times: [[[eta differentiateWithOperator: diffJacobianY] spatialDomain] plus: @(1.0)]]] frequencyDomain]];
 			
 			GLVariable *yTracer = yNew[1];
-			GLVariable *fTracer = [[[[[eta y] times: [yTracer x]] minus:[[eta x] times: [yTracer y]] ] frequencyDomain] plus: [yTracer diff: @"damp"]];
+			GLVariable *fTracer = [[[[[eta y] times: [yTracer x]] minus:[[eta x] times: [yTracer y]] ] frequencyDomain] plus: [yTracer differentiateWithOperator: harmonicDamp]];
 			
 			NSArray *uv = @[[[[eta y] spatialDomain] negate], [[eta x] spatialDomain] ];
 			NSArray *xy = @[yNew[2], yNew[3]];
@@ -172,7 +152,7 @@ int main (int argc, const char * argv[])
 		for (GLFloat time = 1/T_QG; time < maxTime; time += 1/T_QG)
 		{
             @autoreleasepool {
-				yin = [integrator stepForward: yin toTime: time];
+				yin = [integrator stepForwardToTime: time];
 				
 				ssh = yin[0];
 				tracer = yin[1];
@@ -182,9 +162,10 @@ int main (int argc, const char * argv[])
 				NSLog(@"Logging day: %f, step size: %f.", (integrator.currentTime*T_QG), integrator.lastStepSize*T_QG);
 				// We're using spectral code, so it's possible (and is in fact the case) that the variable is not in the spatial domain.
 				[tDim addPoint: @(time)];
-				GLVariable *eta = [[ssh diff: @"inverseLaplacianMinusOne"] spatialDomain];
+				GLVariable *eta = [[inverseLaplacianMinusOne transform: ssh] spatialDomain];
+				GLVariable *tracerSpace = [tracer spatialDomain];
 				[sshHistory concatenateWithLowerDimensionalVariable: eta alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
-				[tracerHistory concatenateWithLowerDimensionalVariable: [tracer spatialDomain] alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
+				[tracerHistory concatenateWithLowerDimensionalVariable: tracerSpace alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
 				[xPositionHistory concatenateWithLowerDimensionalVariable: xPosition alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
 				[yPositionHistory concatenateWithLowerDimensionalVariable: yPosition alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
             }
