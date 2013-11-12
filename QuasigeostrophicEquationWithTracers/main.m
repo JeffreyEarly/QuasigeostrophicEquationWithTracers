@@ -35,8 +35,8 @@ int main (int argc, const char * argv[])
 		GLEquation *equation = [[GLEquation alloc] init];
 		
 		NSArray *spatialDimensions = @[xDim, yDim];
-		GLVariable *x = [GLVariable variableOfRealTypeFromDimension: xDim withDimensions: spatialDimensions forEquation: equation];
-		GLVariable *y = [GLVariable variableOfRealTypeFromDimension: yDim withDimensions: spatialDimensions forEquation: equation];
+		GLFunction *x = [GLFunction functionOfRealTypeFromDimension: xDim withDimensions: spatialDimensions forEquation: equation];
+		GLFunction *y = [GLFunction functionOfRealTypeFromDimension: yDim withDimensions: spatialDimensions forEquation: equation];
 		
 		/************************************************************************************************/
 		/*		Create and cache the differential operators we will need								*/
@@ -71,16 +71,16 @@ int main (int argc, const char * argv[])
 		GLFloat amplitude = 15.0/N_QG;
 		GLFloat length = 80/L_QG;
 		
-		GLVariable *r2 = [[x times: x] plus: [y times: y]];
-		GLVariable *gaussian = [[[r2 times: @(-1.0/(length*length))] exponentiate] times: @(amplitude)];
+		GLFunction *r2 = [[x times: x] plus: [y times: y]];
+		GLFunction *gaussian = [[[r2 times: @(-1.0/(length*length))] exponentiate] times: @(amplitude)];
 		
 		// The tracer varies linearly from east-to-west, but we create a smooth edge at the boundary.
-		GLVariable *distanceFromEW = [[[[[x plus: @(-xDim.domainMin-xDim.domainLength/2.0)] abs] negate] plus: @(xDim.domainLength/2.0)] times: @(1/(250/L_QG))];
-		GLVariable *tracer = [[[[[[distanceFromEW times: distanceFromEW] times: @(-2.0*M_PI)] exponentiate] negate] plus: @(1)] times: x];
+		GLFunction *distanceFromEW = [[[[[x plus: @(-xDim.domainMin-xDim.domainLength/2.0)] abs] negate] plus: @(xDim.domainLength/2.0)] times: @(1/(250/L_QG))];
+		GLFunction *tracer = [[[[[[distanceFromEW times: distanceFromEW] times: @(-2.0*M_PI)] exponentiate] negate] plus: @(1)] times: x];
 		
 		// Let's also plop a float at each grid point.
-		GLVariable *xPosition = [GLVariable variableFromVariable: x];
-		GLVariable *yPosition = [GLVariable variableFromVariable: y];
+		GLFunction *xPosition = [GLFunction functionFromFunction: x];
+		GLFunction *yPosition = [GLFunction functionFromFunction: y];
         
 		/************************************************************************************************/
 		/*		Create a NetCDF file and mutable variables in order to record some of the time steps.	*/
@@ -108,9 +108,9 @@ int main (int argc, const char * argv[])
 		/*		Determine an appropriate time step based on the CFL condition.							*/
 		/************************************************************************************************/
 		
-		GLVariable *v = [gaussian x];
-		GLVariable *u = [gaussian y];
-		GLVariable *speed = [[u times: u] plus: [v times: v]];
+		GLFunction *v = [gaussian x];
+		GLFunction *u = [gaussian y];
+		GLFunction *speed = [[u times: u] plus: [v times: v]];
 		[equation solveForVariable: speed];
 		
 		CGFloat cfl = 0.5;
@@ -122,18 +122,18 @@ int main (int argc, const char * argv[])
 		/*		Create the integration object.															*/
 		/************************************************************************************************/
 		
-		GLVariable *ssh = [gaussian differentiateWithOperator: laplacianMinusOne];
+		GLFunction *ssh = [gaussian differentiateWithOperator: laplacianMinusOne];
 		tracer = [tracer frequencyDomain];
 		NSArray *yin = @[ssh, tracer, xPosition, yPosition];
 		
 //		GLRungeKuttaOperation *integrator = [GLAdaptiveRungeKuttaOperation rungeKutta23AdvanceY: yin stepSize: timeStep fFromTY:^(GLScalar *time, NSArray *yNew) {
 		GLRungeKuttaOperation *integrator = [GLRungeKuttaOperation rungeKutta4AdvanceY: yin stepSize: timeStep fFromTY:^(GLScalar *time, NSArray *yNew) {
-			GLVariable *eta = [inverseLaplacianMinusOne transform: yNew[0]];
+			GLFunction *eta = [inverseLaplacianMinusOne transform: yNew[0]];
 			
-			GLVariable *fSSH = [[eta differentiateWithOperator: diffLin] plus: [[[[eta y] times: [eta differentiateWithOperator: diffJacobianX]] minus: [[eta x] times: [[[eta differentiateWithOperator: diffJacobianY] spatialDomain] plus: @(1.0)]]] frequencyDomain]];
+			GLFunction *fSSH = [[eta differentiateWithOperator: diffLin] plus: [[[[eta y] times: [eta differentiateWithOperator: diffJacobianX]] minus: [[eta x] times: [[[eta differentiateWithOperator: diffJacobianY] spatialDomain] plus: @(1.0)]]] frequencyDomain]];
 			
-			GLVariable *yTracer = yNew[1];
-			GLVariable *fTracer = [[[[[eta y] times: [yTracer x]] minus:[[eta x] times: [yTracer y]] ] frequencyDomain] plus: [yTracer differentiateWithOperator: harmonicDamp]];
+			GLFunction *yTracer = yNew[1];
+			GLFunction *fTracer = [[[[[eta y] times: [yTracer x]] minus:[[eta x] times: [yTracer y]] ] frequencyDomain] plus: [yTracer differentiateWithOperator: harmonicDamp]];
 			
 			NSArray *uv = @[[[[eta y] spatialDomain] negate], [[eta x] spatialDomain] ];
 			NSArray *xy = @[yNew[2], yNew[3]];
@@ -162,8 +162,8 @@ int main (int argc, const char * argv[])
 				NSLog(@"Logging day: %f, step size: %f.", (integrator.currentTime*T_QG), integrator.lastStepSize*T_QG);
 				// We're using spectral code, so it's possible (and is in fact the case) that the variable is not in the spatial domain.
 				[tDim addPoint: @(time)];
-				GLVariable *eta = [[inverseLaplacianMinusOne transform: ssh] spatialDomain];
-				GLVariable *tracerSpace = [tracer spatialDomain];
+				GLFunction *eta = [[inverseLaplacianMinusOne transform: ssh] spatialDomain];
+				GLFunction *tracerSpace = [tracer spatialDomain];
 				[sshHistory concatenateWithLowerDimensionalVariable: eta alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
 				[tracerHistory concatenateWithLowerDimensionalVariable: tracerSpace alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
 				[xPositionHistory concatenateWithLowerDimensionalVariable: xPosition alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
