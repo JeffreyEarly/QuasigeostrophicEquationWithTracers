@@ -1,7 +1,7 @@
 file = '/Users/jearly/Desktop/QuasigeostrophyTracers.nc';
-x = ncread(file, 'x');
-y = ncread(file, 'y');
-t = ncread(file, 'time')*ncreadatt(file, '/', 'time_scale');
+x = ncread(file, 'x')/1000;
+y = ncread(file, 'y')/1000;
+t = ncread(file, 'time')/86400;
 ssh = double(ncread(file, 'SSH'));
 tracer = double(ncread(file, 'x-tracer'));
 

@@ -15,10 +15,26 @@ int main (int argc, const char * argv[])
 {
 	
 	@autoreleasepool {
-		// Reasonable parameters to nondimensionalize by.
-		GLFloat N_QG = 1.3; // cm
-		GLFloat T_QG = 12; // days
-		GLFloat L_QG = 47; // km
+		GLFloat latitude = 24;
+		GLFloat A = 15.0; // eddy height, in cm
+		GLFloat L = 80.0; // eddy length, in km
+		
+		// Standard constants
+		GLFloat H0 = 0.80; // equivalent depth, in meters
+        GLFloat f0 = 2 * 7.2921E-5 * sin( latitude*M_PI/180. );
+        GLFloat g = 9.81;
+		GLFloat R = 6.371e6;
+		GLFloat beta = 2 * 7.2921E-5 * cos( latitude*M_PI/180. ) / R;
+		
+		// This is the only choice of parameters to completely nondimensionalize
+		// the QGPVE on the beta-plane. f-plane has an additional freedom.
+		GLFloat L_QG = sqrt(g*H0)/f0; // m
+		GLFloat T_QG = 1/(beta*L_QG); // s
+		GLFloat N_QG = H0*(beta*L_QG*L_QG)/sqrt(g*H0); // m
+		
+		L_QG /= 1000; // km
+		T_QG /= 86400; // days
+		N_QG *= 100; // cm
 		
 		/************************************************************************************************/
 		/*		Define the problem dimensions															*/
@@ -68,8 +84,8 @@ int main (int argc, const char * argv[])
 		/************************************************************************************************/
 		
 		//  gaussian = amplitude * exp( - ((x-x0)*(x-x0) + (y-y0)*(y-y0))/(length*length) );
-		GLFloat amplitude = 15.0/N_QG;
-		GLFloat length = 80/L_QG;
+		GLFloat amplitude = A/N_QG;
+		GLFloat length = L/L_QG;
 		
 		GLFunction *r2 = [[x times: x] plus: [y times: y]];
 		GLFunction *gaussian = [[[r2 times: @(-1.0/(length*length))] exponentiate] times: @(amplitude)];
@@ -91,16 +107,25 @@ int main (int argc, const char * argv[])
 		[netcdfFile setGlobalAttribute: @(N_QG) forKey: @"height_scale"];
 		[netcdfFile setGlobalAttribute: @(L_QG) forKey: @"length_scale"];
 		[netcdfFile setGlobalAttribute: @(T_QG) forKey: @"time_scale"];
-		GLMutableVariable *sshHistory = [gaussian variableByAddingDimension: tDim];
+		[netcdfFile setGlobalAttribute: @(latitude) forKey:@"latitude"];
+		
+		GLFunction *dimensionalSSH = [gaussian scaleVariableBy: N_QG/100.0 withUnits: @"m" dimensionsBy: L_QG*1000.0 units: @"m"];
+		GLMutableVariable *sshHistory = [dimensionalSSH variableByAddingDimension: tDim];
 		sshHistory.name = @"SSH";
 		sshHistory = [netcdfFile addVariable: sshHistory];
-		GLMutableVariable *tracerHistory = [tracer variableByAddingDimension: tDim];
+		
+		GLFunction *dimensionalTracer = [tracer scaleVariableBy: 1.0 withUnits: @"1/m^2" dimensionsBy: L_QG*1000.0 units: @"m"];
+		GLMutableVariable *tracerHistory = [dimensionalTracer variableByAddingDimension: tDim];
 		tracerHistory.name = @"x-tracer";
 		tracerHistory = [netcdfFile addVariable: tracerHistory];
-		GLMutableVariable *xPositionHistory = [xPosition variableByAddingDimension: tDim];
+		
+		GLFunction *dimensionalXPosition = [xPosition scaleVariableBy: L_QG*1000.0 withUnits: @"m" dimensionsBy: L_QG*1000.0 units: @"m"];
+		GLMutableVariable *xPositionHistory = [dimensionalXPosition variableByAddingDimension: tDim];
 		xPositionHistory.name = @"x-position";
 		xPositionHistory = [netcdfFile addVariable: xPositionHistory];
-		GLMutableVariable *yPositionHistory = [yPosition variableByAddingDimension: tDim];
+		
+		GLFunction *dimensionalYPosition = [yPosition scaleVariableBy: L_QG*1000.0 withUnits: @"m" dimensionsBy: L_QG*1000.0 units: @"m"];
+		GLMutableVariable *yPositionHistory = [dimensionalYPosition variableByAddingDimension: tDim];
 		yPositionHistory.name = @"y-position";
 		yPositionHistory = [netcdfFile addVariable: yPositionHistory];
 		
@@ -126,7 +151,6 @@ int main (int argc, const char * argv[])
 		tracer = [tracer frequencyDomain];
 		NSArray *yin = @[ssh, tracer, xPosition, yPosition];
 		
-//		GLRungeKuttaOperation *integrator = [GLAdaptiveRungeKuttaOperation rungeKutta23AdvanceY: yin stepSize: timeStep fFromTY:^(GLScalar *time, NSArray *yNew) {
 		GLRungeKuttaOperation *integrator = [GLRungeKuttaOperation rungeKutta4AdvanceY: yin stepSize: timeStep fFromTY:^(GLScalar *time, NSArray *yNew) {
 			GLFunction *eta = [inverseLaplacianMinusOne transform: yNew[0]];
 			
@@ -143,8 +167,6 @@ int main (int argc, const char * argv[])
 			return f;
 		}];
 		
-		//		integrator.absoluteTolerance = @[ @(1e-6), @(1e-6), @(1e-3), @(1e-3)];
-		
 		/************************************************************************************************/
 		/*		Step forward in time, and write the data to file every-so-often.						*/
 		/************************************************************************************************/
@@ -154,18 +176,16 @@ int main (int argc, const char * argv[])
             @autoreleasepool {
 				yin = [integrator stepForwardToTime: time];
 				
-				ssh = yin[0];
-				tracer = yin[1];
-				xPosition = yin[2];
-				yPosition = yin[3];
+				ssh = [[[inverseLaplacianMinusOne transform: yin[0]] spatialDomain] scaleVariableBy: N_QG/100.0 withUnits: @"m" dimensionsBy: L_QG*1000.0 units: @"m"];
+				tracer = [[yin[1] spatialDomain] scaleVariableBy: 1.0 withUnits: @"1/m^2" dimensionsBy: L_QG*1000.0 units: @"m"];
+				xPosition = [yin[2] scaleVariableBy: L_QG*1000.0 withUnits: @"m" dimensionsBy: L_QG*1000.0 units: @"m"];
+				yPosition = [yin[3] scaleVariableBy: L_QG*1000.0 withUnits: @"m" dimensionsBy: L_QG*1000.0 units: @"m"];
 				
 				NSLog(@"Logging day: %f, step size: %f.", (integrator.currentTime*T_QG), integrator.lastStepSize*T_QG);
 				// We're using spectral code, so it's possible (and is in fact the case) that the variable is not in the spatial domain.
-				[tDim addPoint: @(time)];
-				GLFunction *eta = [[inverseLaplacianMinusOne transform: ssh] spatialDomain];
-				GLFunction *tracerSpace = [tracer spatialDomain];
-				[sshHistory concatenateWithLowerDimensionalVariable: eta alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
-				[tracerHistory concatenateWithLowerDimensionalVariable: tracerSpace alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
+				[tDim addPoint: @(time*T_QG*86400)];
+				[sshHistory concatenateWithLowerDimensionalVariable: ssh alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
+				[tracerHistory concatenateWithLowerDimensionalVariable: tracer alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
 				[xPositionHistory concatenateWithLowerDimensionalVariable: xPosition alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
 				[yPositionHistory concatenateWithLowerDimensionalVariable: yPosition alongDimensionAtIndex:0 toIndex: (tDim.nPoints-1)];
             }
