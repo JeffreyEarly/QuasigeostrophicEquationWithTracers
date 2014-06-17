@@ -1,5 +1,13 @@
 file = '/Users/jearly/Desktop/QuasigeostrophyTracers.nc';
+trackfile = '/Users/jearly/Desktop/QuasigeostrophyTracers_tracks.mat';
 FramesFolder ='/Users/jearly/Desktop/QuasigeostrophyTracerFrames';
+
+shouldDisplayTracks = 1;
+if exist(trackfile,'file')
+	load(trackfile);
+else
+	shouldDisplayTracks = 0;
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -59,6 +67,11 @@ for iTime=20:20
 	% scatter(xpos, ypos, floatSize*floatSize, xposInitial, 'filled')	
 	mesh([xpos';xpos'],[ypos';ypos'],[xposInitial';xposInitial'],'mesh','column','marker','.','MarkerSize',floatSize*floatSize), view(2)
 	grid off
+	
+	if (shouldDisplayTracks == 1)
+		hold on
+		plot(eddy.rv(iTime).xContour/1000, eddy.rv(iTime).yContour/1000, 'LineWidth', 2, 'Color', 'red')
+	end
 	
 	% make the axes look better
 	set( gca, 'TickDir', 'out');

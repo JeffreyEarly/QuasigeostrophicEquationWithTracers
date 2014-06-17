@@ -32,8 +32,8 @@ eddy = filecontents.eddy;
 time = time ./ 86400;
 
 % Grab and create the global attributes
-lengthScale = ncreadatt(file, '/', 'length_scale');
-latitude = ncreadatt(file, '/', 'latitude');
+lengthScale = double(ncreadatt(file, '/', 'length_scale'));
+latitude = double(ncreadatt(file, '/', 'latitude'));
 EARTH_RADIUS = 6378100.0;
 SIDEREAL_DAY = 86164.1;
 g = 9.81;
@@ -99,7 +99,7 @@ for timePoint= 1:timeTracked
 	cy = xSpeed(timePoint) * repmat(y,[1,length(x)]);
 	cx = ySpeed(timePoint) * repmat(x',[length(y),1]);
 	
-	heightShift = double(-cx * coriolisParameter/g + cy * coriolisParameter/g + surfaceHeight);
+	heightShift = -cx * coriolisParameter/g + cy * coriolisParameter/g + surfaceHeight;
 	
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	%
