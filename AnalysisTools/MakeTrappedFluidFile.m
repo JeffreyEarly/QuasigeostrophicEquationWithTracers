@@ -1,4 +1,4 @@
-%function eddy = TrappedFluid( NetCDFFile, TrackFile, TrappedFluidFile )
+function [eddy] = MakeTrappedFluidFile( file, shouldSave )
 
 % First iteration divergence was calculated with shifted height -- RV stayed very constant
 % Second iteration divergence was calculated with height
@@ -14,17 +14,26 @@
 % Load the variables from the file
 %
 
-TrackFile = '/Users/jearly/Desktop/QuasigeostrophyTracers_tracks.mat';
-NetCDFFile = '/Users/jearly/Desktop/QuasigeostrophyTracers.nc';
+if (~exist(file, 'file'))
+   fprintf('Unable to locate the netcdf file.'); 
+end
 
-load(TrackFile);
+[pathstr,name,~] = fileparts(file);
+TrackFile = fullfile(pathstr,sprintf('%s_tracks.mat',name));
 
-[time, x, y] = FieldsFromTurbulenceFile(NetCDFFile, 1, 't', 'x', 'y');
+if (~exist(TrackFile, 'file'))
+   fprintf('Unable to locate the track file. You may need to run MakeTrackFile first.'); 
+end
+
+filecontents = load(TrackFile);
+eddy = filecontents.eddy;
+
+[time] = FieldsFromTurbulenceFile(file, 1, 't');
 time = time ./ 86400;
 
 % Grab and create the global attributes
-lengthScale = ncreadatt(NetCDFFile, '/', 'length_scale');
-latitude = ncreadatt(NetCDFFile, '/', 'latitude');
+lengthScale = ncreadatt(file, '/', 'length_scale');
+latitude = ncreadatt(file, '/', 'latitude');
 EARTH_RADIUS = 6378100.0;
 SIDEREAL_DAY = 86164.1;
 g = 9.81;
@@ -51,7 +60,6 @@ a.xContour = [];
 a.yContour = [];
 
 eddy.trappedFluid(timeTracked) = a;
-eddy.AmbientVorticityTrappedSummed(timeTracked) = 0.0;
 
 eddy.relativeVorticityTrappedSummed(timeTracked) = 0.0;
 eddy.planetaryVorticityTrappedSummed(timeTracked) = 0.0;
@@ -71,17 +79,17 @@ xSpeed = SmoothFiniteDifference(time*86400,[eddy.rv.x]);
 ySpeed = SmoothFiniteDifference(time*86400,[eddy.rv.y]);
 
 
-for timePoint= 1:25%length(timeTracked)
+for timePoint= 1:timeTracked
 
 	if (mod(timePoint, 10) == 0)
-		sprintf('Trapped Fluid Algorithm, time = %d', timePoint)
+		fprintf('Trapped Fluid Algorithm, time = %d\n', timePoint)
 	end
 
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	%
 	% Transform the surface height into moving coordinates
 	%
-    [x, y, surfaceHeight, relativeVorticityMag, u, v] = FieldsFromTurbulenceFile(NetCDFFile, timePoint, 'x', 'y', 'ssh', 'rv', 'u', 'v');
+    [x, y, surfaceHeight, relativeVorticityMag, u, v] = FieldsFromTurbulenceFile(file, timePoint, 'x', 'y', 'ssh', 'rv', 'u', 'v');
     
 	fluidDepth = equivalentDepth + surfaceHeight;
 	dx = x(2) - x(1);
@@ -241,4 +249,8 @@ for timePoint= 1:25%length(timeTracked)
 	
 	eddy.potentialEnergyTrappedSummed(timePoint) =  sum(sum(PE .* trappedFluidSubdomain));
 	eddy.potentialEnergyZeroContourSummed(timePoint) = sum(sum(PE .* rvZeroContourFluidSubdomain));
+end
+
+if shouldSave == 1
+    save(TrackFile, 'eddy');
 end

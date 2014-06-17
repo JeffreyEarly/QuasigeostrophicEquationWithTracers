@@ -1,4 +1,4 @@
-function [eddy] = TrackMonopole( file, shouldSave )
+function [eddy] = MakeTrackFile( file, shouldSave )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
