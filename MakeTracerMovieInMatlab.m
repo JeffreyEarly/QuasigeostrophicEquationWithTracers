@@ -1,11 +1,19 @@
 file = '/Users/jearly/Desktop/QuasigeostrophyTracers.nc';
+trackfile = '/Users/jearly/Desktop/QuasigeostrophyTracers_tracks.mat';
 FramesFolder ='/Users/jearly/Desktop/QuasigeostrophyTracerFrames';
+
+shouldDisplayTracks = 1;
+if exist(trackfile,'file')
+	load(trackfile);
+else
+	shouldDisplayTracks = 0;
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
 % 	Make the frames folder
 %
-if exist(FramesFolder) == 0
+if exist(FramesFolder,'dir') == 0
 	mkdir(FramesFolder);
 end
 
@@ -13,9 +21,9 @@ end
 %
 % 	Read in the problem dimensions
 %
-x = ncread(file, 'x');
-y = ncread(file, 'y');
-t = ncread(file, 'time');
+x = ncread(file, 'x')/1000;
+y = ncread(file, 'y')/1000;
+t = ncread(file, 'time')/86400;
 
 timeScale = ncreadatt(file, '/', 'time_scale');
 distanceScale = ncreadatt(file, '/', 'length_scale');
@@ -29,7 +37,7 @@ floatSize = 4;
 
 % Read in the initial position of the floats.
 % We will use this information to maintain a constant color on each float.
-xposInitial = double(ncread(file, 'x-position', [ceil(stride/2) ceil(stride/2) 1], [length(y)/stride length(x)/stride 1], [stride stride 1]));
+xposInitial = double(ncread(file, 'x-position', [ceil(stride/2) ceil(stride/2) 1], [length(y)/stride length(x)/stride 1], [stride stride 1]))/1000;
 xposInitial = reshape(xposInitial, length(y)*length(x)/(stride*stride), 1);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -44,8 +52,8 @@ set(gcf, 'Color', 'w');
 for iTime=20:20
 
 	% read in the position of the floats for the given time	
-	xpos = double(ncread(file, 'x-position', [ceil(stride/2) ceil(stride/2) iTime], [length(y)/stride length(x)/stride 1], [stride stride 1]));
-	ypos = double(ncread(file, 'y-position', [ceil(stride/2) ceil(stride/2) iTime], [length(y)/stride length(x)/stride 1], [stride stride 1]));
+	xpos = double(ncread(file, 'x-position', [ceil(stride/2) ceil(stride/2) iTime], [length(y)/stride length(x)/stride 1], [stride stride 1]))/1000;
+	ypos = double(ncread(file, 'y-position', [ceil(stride/2) ceil(stride/2) iTime], [length(y)/stride length(x)/stride 1], [stride stride 1]))/1000;
 	
 	% make everything a column vector
 	xpos = reshape(xpos, length(y)*length(x)/(stride*stride), 1);
@@ -60,6 +68,11 @@ for iTime=20:20
 	mesh([xpos';xpos'],[ypos';ypos'],[xposInitial';xposInitial'],'mesh','column','marker','.','MarkerSize',floatSize*floatSize), view(2)
 	grid off
 	
+	if (shouldDisplayTracks == 1)
+		hold on
+		plot(eddy.rv(iTime).xContour/1000, eddy.rv(iTime).yContour/1000, 'LineWidth', 2, 'Color', 'red')
+	end
+	
 	% make the axes look better
 	set( gca, 'TickDir', 'out');
 	set( gca, 'Linewidth', 1.0);
@@ -72,12 +85,12 @@ for iTime=20:20
 	ylim([min(y) max(y)])
 	
 	% label everything
-	title( sprintf('Floats advected by a Quasigeostrophic eddy, colored by initial position, day %d', round(t(iTime)*timeScale)), 'fontsize', 28, 'FontName', 'Helvetica' );
-	ylabel( 'distance (Rossby radius)', 'FontSize', 24.0, 'FontName', 'Helvetica');
+	title( sprintf('Floats advected by a Quasigeostrophic eddy, colored by initial position, day %d', round(t(iTime))), 'fontsize', 28, 'FontName', 'Helvetica' );
+	ylabel( 'distance (km)', 'FontSize', 24.0, 'FontName', 'Helvetica');
 	
 	% add a color bar
 	cb = colorbar( 'location', 'SouthOutside' );
-	set(get(cb,'xlabel'),'String', 'distance (Rossby radius)', 'FontSize', 24.0, 'FontName', 'Helvetica');
+	set(get(cb,'xlabel'),'String', 'distance (km)', 'FontSize', 24.0, 'FontName', 'Helvetica');
 	set( gca, 'clim', [min(x) max(x)] );
 	
 	% write everything out	

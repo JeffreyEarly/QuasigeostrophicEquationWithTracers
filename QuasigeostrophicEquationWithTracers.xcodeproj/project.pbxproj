@@ -35,6 +35,8 @@
 		81CCB0C418046F100064471F /* GLNumericalModelingKit.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = GLNumericalModelingKit.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		81CCB0C71804809E0064471F /* MakeTracerMovieInMatlab.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MakeTracerMovieInMatlab.m; sourceTree = "<group>"; };
 		81CCB0C81804809E0064471F /* ShowInMatlab.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ShowInMatlab.m; sourceTree = "<group>"; };
+		81D16DFA1950FD5900E061DA /* MakeTrackFile.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = MakeTrackFile.m; path = AnalysisTools/MakeTrackFile.m; sourceTree = "<group>"; };
+		81D16DFB1950FD5900E061DA /* MakeTrappedFluidFile.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = MakeTrappedFluidFile.m; path = AnalysisTools/MakeTrappedFluidFile.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,6 +102,8 @@
 			children = (
 				81CCB0C71804809E0064471F /* MakeTracerMovieInMatlab.m */,
 				81CCB0C81804809E0064471F /* ShowInMatlab.m */,
+				81D16DFA1950FD5900E061DA /* MakeTrackFile.m */,
+				81D16DFB1950FD5900E061DA /* MakeTrappedFluidFile.m */,
 			);
 			name = Matlab;
 			sourceTree = "<group>";
